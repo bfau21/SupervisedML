@@ -1,0 +1,19 @@
+# Ignorer les fichiers de configuration locaux
+.env
+config/*.local.json
+
+# Ignorer les dossiers spécifiques
+node_modules/
+dist/
+
+# Ignorer les fichiers de log
+*.log
+
+# Ignorer les fichiers de sauvegarde
+*.bak
+*.tmp
+
+*.joblib
+*.png
+*.cfg
+*.csv

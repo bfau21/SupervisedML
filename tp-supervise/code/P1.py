@@ -120,13 +120,115 @@ def save_best_model(model, accuracy, model_name):
     joblib.dump(model, filename)
     print(f"Modèle {model_name} enregistré dans : {filename}")
 
-# Section 5: Inférence sur de nouveaux jeux de données
+# Inférence sur de nouveaux jeux de données
 def predict_new_data(scaler_file, model_file, X):
     scaler = joblib.load(scaler_file)
     model = joblib.load(model_file)
     new_features_scaled = scaler.transform(X)
     predictions = model.predict(new_features_scaled)
     return predictions
+
+def plot_correlation_matrix(data, target_column):
+    correlation_matrix = data.corr()
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+    plt.title(f'Corrélations des features avec le label ({target_column})')
+    plt.savefig(f'correlation_{target_column}.png')  
+    plt.close()  
+
+def plot_feature_importance(X, y, model_type='RandomForest'):
+    if model_type == 'RandomForest':
+        model = joblib.load("RandomForest_BestModel_0819.joblib")
+    elif model_type == 'GradientBoosting':
+        model = joblib.load("GradientBoosting_BestModel_0827.joblib")
+    elif model_type == 'AdaBoost':
+        model = joblib.load("AdaBoost_BestModel_0810.joblib")
+    elif model_type == 'Stacking':
+        model = joblib.load("Stacking_BestModel_0822.joblib")
+    else:
+        raise ValueError("Mauvais model_type")
+    model.fit(X, y)
+    importances = model.feature_importances_
+    sorted_idx = importances.argsort()
+    plt.figure(figsize=(10, 6))
+    plt.barh(range(10), importances[sorted_idx[-10:]])
+    plt.yticks(range(10), X.columns[sorted_idx[-10:]])
+    plt.title(f'10 caractéristiques les plus importantes ({model_type})')
+    plt.savefig(f'importance_{model_type}.png')  
+    plt.close() 
+
+def evaluate_gender_bias(X, y, gender_column='SEX'):
+    data = X.copy()
+    data['PINCP'] = y
+    # Taux global
+    global_rate = data['PINCP'].mean() * 100
+    print(f"Taux global d'individus avec un revenu > 50 000 : {global_rate:.2f}%")
+    # Vérifier si la colonne de genre existe
+    if gender_column not in data.columns:
+        print(f"La colonne {gender_column} n'existe pas dans les données.")
+        return
+    # Taux par genre
+    for gender, label in zip([1, 2], ['Homme', 'Femme']):
+        gender_data = data[data[gender_column] == gender]
+        rate = gender_data['PINCP'].mean() * 100
+        print(f"Taux pour {label} avec un revenu > 50 000 : {rate:.2f}%")
+
+def evaluate_fairness_by_gender(model, X, y, gender_column='SEX'):
+    data = X.copy()
+    data['PINCP'] = y
+    if gender_column not in data.columns:
+        print(f"La colonne {gender_column} n'existe pas dans les données.")
+        return
+    # Prédictions
+    predictions = model.predict(X)
+    # Analyse par genre
+    metrics = {}
+    for gender, label in zip([1, 2], ['Homme', 'Femme']):
+        gender_data = data[data[gender_column] == gender]
+        gender_y_true = gender_data['PINCP']
+        gender_y_pred = predictions[gender_data.index]
+        # Matrice de confusion
+        tn, fp, fn, tp = confusion_matrix(gender_y_true, gender_y_pred).ravel()
+        # Calcul des métriques
+        total = len(gender_y_true)
+        ppr = (tp + fp) / total  # Positive Prediction Rate
+        tpr = tp / (tp + fn) if (tp + fn) > 0 else 0  # True Positive Rate
+        fpr = fp / (fp + tn) if (fp + tn) > 0 else 0  # False Positive Rate
+        metrics[label] = {
+            "PPV (Statistical Parity)": ppr,
+            "TPR (Equal Opportunity)": tpr,
+            "FPR (Predictive Equality)": fpr,
+        }
+    return metrics
+
+def calculate_fairness_metrics(y_true, y_pred, gender_column):
+    metrics = {}
+    for gender in ['Homme', 'Femme']:
+        indices = (gender_column == gender)
+        y_true_gender = y_true[indices]
+        y_pred_gender = y_pred[indices]
+        tn, fp, fn, tp = confusion_matrix(y_true_gender, y_pred_gender).ravel()
+        
+        ppv = (tp + fp) / len(y_pred_gender)  # Statistical Parity
+        tpr = tp / (tp + fn)  # Equal Opportunity
+        fpr = fp / (fp + tn)  # Predictive Equality
+        
+        metrics[gender] = {
+            "Statistical Parity (PPV)": ppv,
+            "Equal Opportunity (TPR)": tpr,
+            "Predictive Equality (FPR)": fpr
+        }
+    return metrics
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -143,7 +245,7 @@ def main():
     # Search & Save best models
     rf_best_n_estimator = -1
     gb_best_n_estimator = -1
-    for i, model_items in enumerate(models.items()[0:2]): #RF, AB, GB
+    for i, model_items in enumerate(list(models.items())[0:2]): #RF, AB, GB
         model_name, model = model_items
         best_model, best_score, best_params = optimize_model(model, list_param_grids[i], X_train_scaled, y_train)
         if i == 0: #Random Forest
@@ -194,6 +296,61 @@ def main():
         print(confusion_matrix(y, colorado_pred))
         results[model_name] = accuracy
         print(results)
+
+    # Interpretabilite & Equite
+    features = pd.read_csv('alt_acsincome_ca_features_85.csv')
+    labels = pd.read_csv('alt_acsincome_ca_labels_85.csv')
+    X, y = features, labels['PINCP'].ravel()
+    #Correlations Initiales
+    data = features.copy()
+    data['PINCP'] = labels
+    plot_correlation_matrix(data, 'label')
+
+    #Correlations RF
+    data = features.copy()
+    model = joblib.load("RandomForest_BestModel_0819.joblib")
+    y_pred = model.predict(X)
+    data['PREDICTION_RF'] = y_pred
+    plot_correlation_matrix(data, 'PREDICTION_RF')
+
+    #Correlations AB
+    data = features.copy()
+    model = joblib.load("AdaBoost_BestModel_0810.joblib")
+    y_pred = model.predict(X)
+    data['PREDICTION_AB'] = y_pred
+    plot_correlation_matrix(data, 'PREDICTION_AB')
+
+    #Correlations GB
+    data = features.copy()
+    model = joblib.load("GradientBoosting_BestModel_0827.joblib")
+    y_pred = model.predict(X)
+    data['PREDICTION_GB'] = y_pred
+    plot_correlation_matrix(data, 'PREDICTION_GB')
+
+    #Correlations Stacking
+    data = features.copy()
+    model = joblib.load("Stacking_BestModel_0822.joblib")
+    y_pred = model.predict(X)
+    data['PREDICTION_Stacking'] = y_pred
+    plot_correlation_matrix(data, 'PREDICTION_Stacking')
+
+    # RF ordre importance attributs
+    plot_feature_importance(X, y, model_type='RandomForest')
+    
+    # Equite
+    # Evaluer le biais du genre
+    evaluate_gender_bias(X, y, gender_column='SEX')
+    # Fairness
+    model = joblib.load("RandomForest_BestModel_0819.joblib")
+    fairness_metrics = evaluate_fairness_by_gender(model, X, y, gender_column='SEX')
+    print("Métriques d'équité par genre :")
+    for gender, metrics in fairness_metrics.items():
+        print(f"\nGenre : {gender}")
+        for metric_name, metric_value in metrics.items():
+            print(f"  {metric_name} : {metric_value:.4f}")
+
+
+
 
     
 main()

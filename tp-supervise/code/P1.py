@@ -56,9 +56,9 @@ param_grid_stack = {
 }
 
 list_param_grids = [param_grid_rf, param_grid_ab, param_grid_gb, param_grid_stack]
-#list_models_files = ['RandomForest_BestModel_0819.joblib', 'AdaBoost_BestModel_0810.joblib', 'GradientBoosting_BestModel_0827.joblib', 'Stacking_BestModel_0822.joblib'] #Liste obtenue après avoir fait le GridSearch
+list_models_files = ['RandomForest_BestModel_0819.joblib', 'AdaBoost_BestModel_0810.joblib', 'GradientBoosting_BestModel_0827.joblib', 'Stacking_BestModel_0822.joblib'] #Liste obtenue après avoir fait le GridSearch
 
-list_models_files = []
+#list_models_files = []
 
 # best_models = { 
 #     "RandomForest": joblib.load(list_models_files[0]),
@@ -228,74 +228,71 @@ def calculate_fairness_metrics(y_true, y_pred, gender_column):
 
 
 
-
-
-
-
 def main():
-    # Load California data
-    X, y = load_and_preprocess_data('alt_acsincome_ca_features_85.csv','alt_acsincome_ca_labels_85.csv')
-    # Analyze features distribution
-    analyse_feature_distribution(X)
-    # Split & Standardize
-    X_train_scaled, X_test_scaled, y_train, y_test = split_and_standardize(X, y)
-    # Evaluate default models
-    results = evaluate_default_models(X_train_scaled, X_test_scaled, y_train, y_test)
-    print(results)
-    # Search & Save best models
-    rf_best_n_estimator = -1
-    gb_best_n_estimator = -1
-    for i, model_items in enumerate(list(models.items())[0:2]): #RF, AB, GB
-        model_name, model = model_items
-        best_model, best_score, best_params = optimize_model(model, list_param_grids[i], X_train_scaled, y_train)
-        if i == 0: #Random Forest
-            rf_best_n_estimator = best_model.n_estimators
-        elif i == 2: #Gradient Boosting
-            gb_best_n_estimator = best_model.n_estimators
-        save_best_model(best_model, best_score, model_name)
-        accuracy_str = str(round(best_score, 4)).replace('.', '')[:4]
-        list_models_files.append(f"{model_name}_BestModel_{accuracy_str}.joblib")
-    # Stacking
-    best_model, best_score, best_params = optimize_model(StackingClassifier(
-        estimators=[
-            ('rf', RandomForestClassifier(n_estimators=rf_best_n_estimator)),
-            ('gb', GradientBoostingClassifier(n_estimators=gb_best_n_estimator))
-        ],
-        final_estimator=LogisticRegression()
-    ), list_param_grids[3], X_train_scaled, y_train)
-    save_best_model(best_model, best_score, 'Stacking')
-    accuracy_str = str(round(best_score, 4)).replace('.', '')[:4]
-    list_models_files.append(f"Stacking_BestModel_{accuracy_str}.joblib")
-    # Test Nevada
-    best_models = { 
-        "RandomForest": joblib.load(list_models_files[0]),
-        "AdaBoost": joblib.load(list_models_files[1]),
-        "GradientBoosting": joblib.load(list_models_files[2]),
-        "Stacking": joblib.load(list_models_files[3])
-    } 
-    X, y = load_and_preprocess_data('acsincome_ne_features.csv','acsincome_ne_labelTP2.csv')
-    for i, model_items in enumerate(best_models.items()):
-        model_name, model = model_items
-        results = {}
-        nevada_pred = predict_new_data('scaler.joblib', list_models_files[i], X)
-        accuracy = accuracy_score(y, nevada_pred)
-        print(f"Accuracy : {accuracy:.4f}")
-        print(classification_report(y, nevada_pred))
-        print(confusion_matrix(y, nevada_pred))
-        results[model_name] = accuracy
-        print(results)
-    # Test Colorado
-    X, y = load_and_preprocess_data('acsincome_co_features.csv','acsincome_co_label.csv')
-    for i, model_items in enumerate(best_models.items()):
-        model_name, model = model_items
-        results = {}
-        colorado_pred = predict_new_data('scaler.joblib', list_models_files[i], X)
-        accuracy = accuracy_score(y, colorado_pred)
-        print(f"Accuracy : {accuracy:.4f}")
-        print(classification_report(y, colorado_pred))
-        print(confusion_matrix(y, colorado_pred))
-        results[model_name] = accuracy
-        print(results)
+    # # Load California data
+    # X, y = load_and_preprocess_data('alt_acsincome_ca_features_85.csv','alt_acsincome_ca_labels_85.csv')
+    # # Analyze features distribution
+    # analyse_feature_distribution(X)
+    # # Split & Standardize
+    # X_train_scaled, X_test_scaled, y_train, y_test = split_and_standardize(X, y)
+    # # Evaluate default models
+    # results = evaluate_default_models(X_train_scaled, X_test_scaled, y_train, y_test)
+    # print(results)
+    # # Search & Save best models
+    # rf_best_n_estimator = -1
+    # gb_best_n_estimator = -1
+    # for i, model_items in enumerate(list(models.items())[0:3]): #RF, AB, GB
+    #     model_name, model = model_items
+    #     best_model, best_score, best_params = optimize_model(model, list_param_grids[i], X_train_scaled, y_train)
+    #     if i == 0: #Random Forest
+    #         rf_best_n_estimator = best_model.n_estimators
+    #     elif i == 2: #Gradient Boosting
+    #         gb_best_n_estimator = best_model.n_estimators
+    #     save_best_model(best_model, best_score, model_name)
+    #     accuracy_str = str(round(best_score, 4)).replace('.', '')[:4]
+    #     list_models_files.append(f"{model_name}_BestModel_{accuracy_str}.joblib")
+    # # Stacking
+    # best_model, best_score, best_params = optimize_model(StackingClassifier(
+    #     estimators=[
+    #         ('rf', RandomForestClassifier(n_estimators=rf_best_n_estimator)),
+    #         ('gb', GradientBoostingClassifier(n_estimators=gb_best_n_estimator))
+    #     ],
+    #     final_estimator=LogisticRegression()
+    # ), list_param_grids[3], X_train_scaled, y_train)
+    # save_best_model(best_model, best_score, 'Stacking')
+    # accuracy_str = str(round(best_score, 4)).replace('.', '')[:4]
+    # list_models_files.append(f"Stacking_BestModel_{accuracy_str}.joblib")
+    # # Test Nevada
+    # best_models = { 
+    #     "RandomForest": joblib.load(list_models_files[0]),
+    #     "AdaBoost": joblib.load(list_models_files[1]),
+    #     "GradientBoosting": joblib.load(list_models_files[2]),
+    #     "Stacking": joblib.load(list_models_files[3])
+    # } 
+    # X, y = load_and_preprocess_data('acsincome_ne_features.csv','acsincome_ne_labelTP2.csv')
+    # #X, y = load_and_preprocess_data('features_split_1.csv', 'labels_split_1.csv')
+    # for i, model_items in enumerate(best_models.items()):
+    #     model_name, model = model_items
+    #     results = {}
+    #     nevada_pred = predict_new_data('scaler.joblib', list_models_files[i], X)
+    #     accuracy = accuracy_score(y, nevada_pred)
+    #     print(f"Accuracy : {accuracy:.4f}")
+    #     print(classification_report(y, nevada_pred))
+    #     print(confusion_matrix(y, nevada_pred))
+    #     results[model_name] = accuracy
+    #     print(results)
+    # # Test Colorado
+    # X, y = load_and_preprocess_data('acsincome_co_features.csv','acsincome_co_label.csv')
+    # for i, model_items in enumerate(best_models.items()):
+    #     model_name, model = model_items
+    #     results = {}
+    #     colorado_pred = predict_new_data('scaler.joblib', list_models_files[i], X)
+    #     accuracy = accuracy_score(y, colorado_pred)
+    #     print(f"Accuracy : {accuracy:.4f}")
+    #     print(classification_report(y, colorado_pred))
+    #     print(confusion_matrix(y, colorado_pred))
+    #     results[model_name] = accuracy
+    #     print(results)
 
     # Interpretabilite & Equite
     features = pd.read_csv('alt_acsincome_ca_features_85.csv')
@@ -304,50 +301,50 @@ def main():
     #Correlations Initiales
     data = features.copy()
     data['PINCP'] = labels
-    plot_correlation_matrix(data, 'label')
+    plot_correlation_matrix(data, 'PINCP')
 
-    #Correlations RF
-    data = features.copy()
-    model = joblib.load("RandomForest_BestModel_0819.joblib")
-    y_pred = model.predict(X)
-    data['PREDICTION_RF'] = y_pred
-    plot_correlation_matrix(data, 'PREDICTION_RF')
+    # #Correlations RF
+    # data = features.copy()
+    # model = joblib.load("RandomForest_BestModel_0819.joblib")
+    # y_pred = model.predict(X)
+    # data['PREDICTION_RF'] = y_pred
+    # plot_correlation_matrix(data, 'PREDICTION_RF')
 
-    #Correlations AB
-    data = features.copy()
-    model = joblib.load("AdaBoost_BestModel_0810.joblib")
-    y_pred = model.predict(X)
-    data['PREDICTION_AB'] = y_pred
-    plot_correlation_matrix(data, 'PREDICTION_AB')
+    # #Correlations AB
+    # data = features.copy()
+    # model = joblib.load("AdaBoost_BestModel_0810.joblib")
+    # y_pred = model.predict(X)
+    # data['PREDICTION_AB'] = y_pred
+    # plot_correlation_matrix(data, 'PREDICTION_AB')
 
-    #Correlations GB
-    data = features.copy()
-    model = joblib.load("GradientBoosting_BestModel_0827.joblib")
-    y_pred = model.predict(X)
-    data['PREDICTION_GB'] = y_pred
-    plot_correlation_matrix(data, 'PREDICTION_GB')
+    # #Correlations GB
+    # data = features.copy()
+    # model = joblib.load("GradientBoosting_BestModel_0827.joblib")
+    # y_pred = model.predict(X)
+    # data['PREDICTION_GB'] = y_pred
+    # plot_correlation_matrix(data, 'PREDICTION_GB')
 
-    #Correlations Stacking
-    data = features.copy()
-    model = joblib.load("Stacking_BestModel_0822.joblib")
-    y_pred = model.predict(X)
-    data['PREDICTION_Stacking'] = y_pred
-    plot_correlation_matrix(data, 'PREDICTION_Stacking')
+    # #Correlations Stacking
+    # data = features.copy()
+    # model = joblib.load("Stacking_BestModel_0822.joblib")
+    # y_pred = model.predict(X)
+    # data['PREDICTION_Stacking'] = y_pred
+    # plot_correlation_matrix(data, 'PREDICTION_Stacking')
 
-    # RF ordre importance attributs
-    plot_feature_importance(X, y, model_type='RandomForest')
+    # # RF ordre importance attributs
+    # plot_feature_importance(X, y, model_type='RandomForest')
     
-    # Equite
-    # Evaluer le biais du genre
-    evaluate_gender_bias(X, y, gender_column='SEX')
-    # Fairness
-    model = joblib.load("RandomForest_BestModel_0819.joblib")
-    fairness_metrics = evaluate_fairness_by_gender(model, X, y, gender_column='SEX')
-    print("Métriques d'équité par genre :")
-    for gender, metrics in fairness_metrics.items():
-        print(f"\nGenre : {gender}")
-        for metric_name, metric_value in metrics.items():
-            print(f"  {metric_name} : {metric_value:.4f}")
+    # # Equite
+    # # Evaluer le biais du genre
+    # evaluate_gender_bias(X, y, gender_column='SEX')
+    # # Fairness
+    # model = joblib.load("RandomForest_BestModel_0819.joblib")
+    # fairness_metrics = evaluate_fairness_by_gender(model, X, y, gender_column='SEX')
+    # print("Métriques d'équité par genre :")
+    # for gender, metrics in fairness_metrics.items():
+    #     print(f"\nGenre : {gender}")
+    #     for metric_name, metric_value in metrics.items():
+    #         print(f"  {metric_name} : {metric_value:.4f}")
 
 
 
